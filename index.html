@@ -539,6 +539,6 @@ function closeModal(id){document.getElementById(id).classList.remove('show');}
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('visible');}
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeViewer();closeModal('addModal');}});
-<\/script>
+</script>
 </body>
 </html>
