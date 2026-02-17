@@ -40,6 +40,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .nav-btn:hover{background:rgba(184,169,201,.15)}.nav-btn.active{background:rgba(184,169,201,.25);font-weight:600}
 .nav-btn .icon{font-size:1rem;width:22px;text-align:center}
 .nav-btn .badge{margin-left:auto;background:var(--accent);color:#fff;font-size:.65rem;padding:2px 7px;border-radius:10px}
+.nav-sub{padding-left:28px;font-size:.8rem}
+.nav-doc{padding-left:44px;font-size:.76rem;opacity:.85}
 
 .main{flex:1;margin-left:270px;padding:24px 28px;max-width:1200px}
 .top-bar{display:flex;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap}
@@ -277,7 +279,7 @@ let TOPICS=[
 {id:'ge',name:'Genel Eğitim',icon:'📖',color:'#e0dcd8'}];
 const TI={'Sesli Özet':'🎧','Video Özet':'🎬','PDF Sunum':'📄','Metin Özeti':'📝'};
 
-let items=[],currentFilter={type:'all'},currentTags=[],pendingFiles=[],currentUser=null,isAdmin=false,unsubItems=null,viewItemId=null;
+let items=[],currentFilter={type:'all'},expandedTopics={},expandedSubs={},currentTags=[],pendingFiles=[],currentUser=null,isAdmin=false,unsubItems=null,viewItemId=null;
 
 // === CLOUDINARY UPLOAD ===
 async function uploadToCloudinary(file, onProgress) {
@@ -353,11 +355,39 @@ const s=document.getElementById('fTopic');s.innerHTML='<option value="">Seçiniz
 TOPICS.forEach(t=>{const o=document.createElement('option');o.value=t.name;o.textContent=t.icon+' '+t.name;s.appendChild(o);});if(isAdmin){var o2=document.createElement('option');o2.value='__new__';o2.textContent='➕ Yeni Başlık Ekle...';s.appendChild(o2);}
 }
 function buildTopicNav(){
-const n=document.getElementById('topicNav');n.innerHTML='';
-TOPICS.forEach(t=>{const c=items.filter(i=>i.topic===t.name).length;if(!c)return;
-const b=document.createElement('button');b.className='nav-btn';b.dataset.filter='topic:'+t.name;
-b.innerHTML=`<span class="icon">${t.icon}</span>${t.name}<span class="badge">${c}</span>`;
-b.onclick=()=>filterBy('topic',t.name);n.appendChild(b);});if(isAdmin){var mb=document.createElement('button');mb.className='nav-btn';mb.style.opacity='.7';mb.innerHTML='<span class="icon">⚙️</span> Konuları Yönet';mb.onclick=function(){openTopicManager();};n.appendChild(mb);}
+var n=document.getElementById('topicNav');n.innerHTML='';
+TOPICS.forEach(function(t){
+var topicItems=items.filter(function(i){return i.topic===t.name;});
+if(!topicItems.length)return;
+var b=document.createElement('button');
+b.className='nav-btn'+(expandedTopics[t.id]?' active':'');
+b.innerHTML='<span class="icon">'+(expandedTopics[t.id]?'▼':'▶')+'</span> '+t.icon+' '+t.name+' <span class="badge">'+topicItems.length+'</span>';
+b.onclick=function(){expandedTopics[t.id]=!expandedTopics[t.id];if(!expandedTopics[t.id])delete expandedSubs[t.id];currentFilter={type:"topic",value:t.name};renderCards();buildTopicNav();};
+n.appendChild(b);
+if(expandedTopics[t.id]){
+var subs={};
+topicItems.forEach(function(i){var s=i.subtopic||'Genel';if(!subs[s])subs[s]=[];subs[s].push(i);});
+Object.keys(subs).forEach(function(subName){
+var subItems=subs[subName];
+var key=t.id+'_'+subName;
+var sb=document.createElement('button');
+sb.className='nav-btn nav-sub'+(expandedSubs[key]?' active':'');
+sb.innerHTML='<span class="icon">'+(expandedSubs[key]?'▾':'▸')+'</span> '+subName+' <span class="badge">'+subItems.length+'</span>';
+sb.onclick=function(e){e.stopPropagation();expandedSubs[key]=!expandedSubs[key];currentFilter={type:"topic",value:t.name,sub:subName};renderCards();buildTopicNav();};
+n.appendChild(sb);
+if(expandedSubs[key]){
+subItems.forEach(function(item){
+var db=document.createElement('button');
+db.className='nav-btn nav-doc';
+db.innerHTML='<span class="icon">'+(({'Sesli Özet':'🎧','Video Özet':'🎬','PDF Sunum':'📄','Metin Özeti':'📝'})[item.contentType]||'📎')+'</span> '+item.title;
+db.onclick=function(e){e.stopPropagation();openItem(item.id);};
+n.appendChild(db);
+});
+}
+});
+}
+});
+if(isAdmin){var mb=document.createElement('button');mb.className='nav-btn';mb.style.opacity='.7';mb.innerHTML='<span class="icon">⚙️</span> Konuları Yönet';mb.onclick=function(){openTopicManager();};n.appendChild(mb);}
 }
 
 // === FILTER ===
@@ -372,7 +402,7 @@ function getFiltered(){
 let l=[...items];const q=document.getElementById('searchInput').value.toLowerCase().trim();
 if(q)l=l.filter(i=>i.title.toLowerCase().includes(q)||(i.summary||'').toLowerCase().includes(q)||(i.tags||[]).some(t=>t.toLowerCase().includes(q))||(i.subtopic||'').toLowerCase().includes(q));
 if(currentFilter.type==='type')l=l.filter(i=>i.contentType===currentFilter.value);
-else if(currentFilter.type==='topic')l=l.filter(i=>i.topic===currentFilter.value);
+else if(currentFilter.type==='topic'){l=l.filter(i=>i.topic===currentFilter.value);if(currentFilter.sub)l=l.filter(i=>(i.subtopic||'Genel')===currentFilter.sub);}
 return l;
 }
 
